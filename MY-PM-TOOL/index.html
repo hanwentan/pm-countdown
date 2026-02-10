@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PM汇报倒计时 & 压力自愈站</title>
+    <style>
+        /* --- CSS 样式区域 --- */
+        :root {
+            --primary-color: #0052d9; /* 科技蓝 */
+            --healing-color: #2ba471; /* 治愈绿 */
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-wrap: wrap; /* 允许换行，实现响应式 */
+        }
+
+        /* 左侧压力区 */
+        .pressure-zone {
+            flex: 1 1 400px; /* 基础宽度400px，可伸缩 */
+            padding: 40px;
+            border-right: 1px solid #eee;
+        }
+
+        /* 右侧自愈区 */
+        .healing-zone {
+            flex: 1 1 300px; /* 基础宽度300px，可伸缩 */
+            padding: 40px;
+            background-color: #f0f9f4; /* 淡淡的绿色背景 */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        /* 输入框样式 */
+        input[type="datetime-local"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 24px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        /* 倒计时大数字样式 */
+        .countdown-display {
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--primary-color);
+            font-variant-numeric: tabular-nums; /* 等宽数字，防止跳动 */
+            line-height: 1.2;
+        }
+        
+        .countdown-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        /* 回血按钮样式 */
+        .heal-btn {
+            background-color: var(--healing-color);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(43, 164, 113, 0.3);
+            transition: transform 0.1s, background-color 0.2s;
+            width: 80%;
+        }
+
+        .heal-btn:hover {
+            background-color: #238a5f;
+        }
+
+        .heal-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* 鼓励语展示区 */
+        .quote-display {
+            margin-top: 30px;
+            min-height: 60px;
+            font-size: 18px;
+            color: #555;
+            font-weight: 500;
+            line-height: 1.5;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .playing-indicator {
+            color: var(--healing-color);
+            font-size: 14px;
+            margin-top: 10px;
+            display: none; /* 默认隐藏 */
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .pressure-zone {
+                border-right: none;
+                border-bottom: 1px solid #eee;
+                padding: 30px 20px;
+            }
+            .healing-zone {
+                 padding: 30px 20px;
+            }
+            .countdown-display {
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <section class="pressure-zone">
+            <h2>⏰ 汇报/Deadline 倒计时</h2>
+            <label for="deadline-picker" style="display:block; margin-bottom: 10px; color:#666;">选择你的“渡劫”时间：</label>
+            <input type="datetime-local" id="deadline-picker">
+            
+            <div class="countdown-label">剩余时间：</div>
+            <div class="countdown-display" id="countdown-text">请先选择时间</div>
+        </section>
+
+        <section class="healing-zone">
+            <h2>🧘 PM压力自愈区</h2>
+            <p style="color: #666; margin-bottom: 30px;">焦虑了？点一下，随机掉落鼓励或30秒宁静。</p>
+            <button class="heal-btn" id="heal-btn">✨ 一键回血</button>
+            
+            <div class="quote-display" id="quote-text"></div>
+            <div class="playing-indicator" id="playing-indicator">🎵 正在播放30秒白噪音，深呼吸...</div>
+
+            <audio id="white-noise-player" preload="auto">
+                <source src="https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg" type="audio/ogg">
+                您的浏览器不支持音频播放。
+            </audio>
+        </section>
+    </div>
+
+
+    <script>
+        /* --- JavaScript 逻辑区域 --- */
+
+        // 1. 倒计时逻辑
+        const deadlineInput = document.getElementById('deadline-picker');
+        const countdownText = document.getElementById('countdown-text');
+        let countdownInterval;
+
+        // 设置默认时间为明天上午10点（方便演示）
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(10, 0, 0, 0);
+        // 格式化为 datetime-local 所需的 YYYY-MM-DDTHH:mm 格式
+        const defaultTimeStr = tomorrow.toISOString().slice(0, 16);
+        deadlineInput.value = defaultTimeStr;
+
+
+        function startCountdown() {
+            const deadline = new Date(deadlineInput.value).getTime();
+
+            // 清除之前的定时器，避免多个定时器同时运行
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            // 立即执行一次，避免1秒延迟
+            updateTimer();
+
+            countdownInterval = setInterval(updateTimer, 1000);
+
+            function updateTimer() {
+                const now = new Date().getTime();
+                const distance = deadline - now;
+
+                if (distance < 0) {
+                    clearInterval(countdownInterval);
+                    countdownText.innerHTML = "<span style='color: #d9534f; font-size: 32px;'>Deadline 已到<br>勇敢面对！</span>";
+                    return;
+                }
+
+                // 计算天、时、分、秒
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                // 补零函数，例如把 9 变成 09
+                const pad = (n) => n < 10 ? '0' + n : n;
+
+                // 更新显示界面
+                countdownText.innerHTML = `${pad(days)}天 ${pad(hours)}时 ${pad(minutes)}分 ${pad(seconds)}秒`;
+            }
+        }
+
+        // 监听时间输入框的变化
+        deadlineInput.addEventListener('change', startCountdown);
+        // 页面加载时尝试启动一次
+        if(deadlineInput.value) startCountdown();
+
+
+        // 2. 压力自愈逻辑
+        const healBtn = document.getElementById('heal-btn');
+        const quoteText = document.getElementById('quote-text');
+        const audioPlayer = document.getElementById('white-noise-player');
+        const playingIndicator = document.getElementById('playing-indicator');
+        let audioTimer;
+
+        // PM 专属鼓励语录
+        const pmQuotes = [
+            "这版需求逻辑闭环满分，开发看了都说好！",
+            "不要慌，技术评估说这个功能实现很简单。",
+            "你今天画的原型图真好看，像素级还原！",
+            "运营说上次上线的功能数据涨了20%！",
+            "老板刚才夸你的Roadmap规划得非常有战略眼光。",
+            "没关系，需求变更很正常，我们是拥抱变化的PM！",
+            "今天的你也非常专业，气场两米八！"
+        ];
+
+        healBtn.addEventListener('click', function() {
+            // 50% 概率随机决定是显示文字还是播放音频
+            const isQuote = Math.random() > 0.5;
+
+            // 先重置状态：停止音频，清除之前的文字
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+            playingIndicator.style.display = 'none';
+            quoteText.textContent = '';
+            if (audioTimer) clearTimeout(audioTimer);
+
+            if (isQuote) {
+                // --- 显示鼓励语 ---
+                const randomIndex = Math.floor(Math.random() * pmQuotes.length);
+                // 重新触发动画技巧
+                quoteText.style.animation = 'none';
+                quoteText.offsetHeight; /* 触发重绘 */
+                quoteText.style.animation = 'fadeIn 0.5s ease-in-out';
+                quoteText.textContent = pmQuotes[randomIndex];
+            } else {
+                // --- 播放白噪音30秒 ---
+                quoteText.textContent = ''; // 清空文字
+                playingIndicator.style.display = 'block'; // 显示播放提示
+                
+                // 尝试播放音频（需要用户交互才能触发，这里是在点击事件里，所以没问题）
+                audioPlayer.play().catch(e => {
+                    console.error("音频播放失败，可能是浏览器策略限制", e);
+                    quoteText.textContent = "音频播放受阻，但愿你心中有片宁静海。";
+                    playingIndicator.style.display = 'none';
+                });
+
+                // 30秒后停止
+                audioTimer = setTimeout(() => {
+                    audioPlayer.pause();
+                    audioPlayer.currentTime = 0;
+                    playingIndicator.style.display = 'none';
+                    quoteText.textContent = "✨ 30秒宁静时刻结束，电量充满！";
+                }, 30000); // 30000 毫秒 = 30 秒
+            }
+        });
+
+    </script>
+</body>
+</html>
